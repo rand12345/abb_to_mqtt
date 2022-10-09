@@ -1,0 +1,39 @@
+[package]
+name = "ABB_TO_MQTT"
+version = "0.1.0"
+authors = ["Nobody_Nowhere <63668759+rand12345@users.noreply.github.com>"]
+edition = "2018"
+resolver = "2"
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true # Symbols are nice and they don't increase the size on Flash
+opt-level = "s"
+
+[profile.release.package."*"]
+opt-level = "s"
+
+[profile.dev.package."*"] # +
+opt-level = "s" # +
+
+[features]
+default = ["native"]
+native = ["esp-idf-sys/native"]
+
+[dependencies]
+nb = "1.0.0"
+anyhow = {version = "1.0.57", features = ["backtrace"]}
+esp-idf-sys = { version = "0.31.10", features = ["binstart"] }
+esp-idf-hal = "0.38.1"       # A Hardware abstraction layer for Espressif's ESP family of microcontrollers based on the ESP-IDF f…
+esp-idf-svc = "0.42.4"
+embedded-svc = "0.22"
+embedded-hal = "0.2.7"
+log = "0.4.17"
+serde = { version = "^1", features = ["derive"] }
+serde_json = "^1"
+
+[build-dependencies]
+embuild = "0.30.4"
+anyhow = "1.0.56"
