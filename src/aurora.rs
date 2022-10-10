@@ -23,6 +23,10 @@ pub enum Status {
     Offline,
     Online,
 }
+#[derive(Debug, Copy, Clone, Serialize)]
+pub struct Availablilty {
+    status: Status,
+}
 
 #[derive(Debug, Copy, Clone, Default, Serialize)]
 pub struct EnergyTotals {
@@ -77,7 +81,7 @@ impl EnergyRequest {
 #[derive(Copy, Clone)]
 pub struct AuroraInverter {
     pub data: Dsp,
-    status: Status,
+    availability: Availablilty,
     id: u8,
     pub energy: EnergyTotals,
     lastmessage: Instant,
@@ -86,7 +90,9 @@ impl AuroraInverter {
     pub fn new(id: u8) -> Self {
         Self {
             data: Dsp::default(),
-            status: Status::Offline,
+            availability: Availablilty {
+                status: Status::Offline,
+            },
             id,
             energy: EnergyTotals::default(),
             lastmessage: Instant::now() - Duration::from_secs(60),
@@ -101,7 +107,7 @@ impl core::fmt::Debug for AuroraInverter {
         writeln!(
             f,
             "Inverter ID: {}\n{:?}\n{:#?}\n{:#?}",
-            self.id, self.status, self.energy, self.data
+            self.id, self.availability, self.energy, self.data
         )
     }
 }
@@ -125,15 +131,17 @@ impl Aurora {
             false,
         )?;
         if convert_bytes_to_f32(response)? > 0.0 {
-            inverter.status = Status::Online;
+            inverter.availability = Availablilty {
+                status: Status::Online,
+            };
             inverter.lastmessage = Instant::now();
             return Ok(());
         }
 
-        inverter.status = Status::Offline;
-        Err(anyhow!(
-            "No grid when connecting - better to do an alarm check"
-        ))
+        inverter.availability = Availablilty {
+            status: Status::Offline,
+        };
+        Err(anyhow!("No response from inverter"))
     }
     pub fn poll_inverter(&mut self, inverter: &mut AuroraInverter) -> anyhow::Result<&mut Aurora> {
         self.init_inverter(inverter)?;
@@ -155,7 +163,8 @@ impl Aurora {
         let mut mqtt_payload: Vec<MqttMessage> = vec![];
         let d1 = serde_json::to_string(&inverter.data)?;
         let d2 = serde_json::to_string(&inverter.energy)?;
-        [d1, d2].iter().for_each(|message_json| {
+        let d3 = serde_json::to_string(&inverter.availability)?;
+        [d1, d2, d3].iter().for_each(|message_json| {
             let data: DataMap =
                 serde_json::from_str(message_json).expect("Serde error in contruction");
             data.iter().for_each(|(key, value)| {
