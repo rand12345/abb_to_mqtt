@@ -41,3 +41,6 @@ twoway = "0.2.2"
 [build-dependencies]
 embuild = "0.30.4"
 anyhow = "1.0.56"
+
+[package.metadata.espflash]
+partition_table = "partitions.csv"
