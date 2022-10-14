@@ -1,11 +1,12 @@
+use esp_idf_hal::mutex::Mutex;
 use esp_idf_svc::timer::*;
 
 use crate::aurora::{Aurora, AuroraInverter};
 use crate::idf_mqtt::{mqtt_publish, MqttClientType};
 use crate::MQTT_TOPIC_NAME;
-use log::info;
+// use log::info;
 use std::{
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -15,43 +16,35 @@ fn inverter_poll_task(
     mqttclient_arc_mutex: Arc<Mutex<MqttClientType>>,
     boot_time: Instant,
 ) {
-    if let Ok(mut aurora) = aurora_arc_mutex.try_lock() {
-        if let Ok(mut inverters) = inverters_arc_mutex.try_lock() {
-            for inverter in inverters.iter_mut() {
-                let json_data = {
-                    if aurora.poll_inverter(inverter).is_err() {
-                        println!("Poll error on ABB{}", inverter.id())
-                    };
-                    // send zeroed data if error - clears MQTT
-                    aurora.data_to_vec_mqtt_json(&inverter, MQTT_TOPIC_NAME)
+    let mut aurora = aurora_arc_mutex.lock();
+    let mut inverters = inverters_arc_mutex.lock();
+    for inverter in inverters.iter_mut() {
+        let json_data = {
+            if aurora.poll_inverter(inverter).is_err() {
+                println!("Poll error on ABB{}", inverter.id())
+            };
+            // send zeroed data if error - clears MQTT
+            aurora.data_to_vec_mqtt_json(inverter, MQTT_TOPIC_NAME)
+        };
+        if let Ok(d) = json_data {
+            d.iter().for_each(|m| {
+                if let Err(e) =
+                    mqtt_publish(mqttclient_arc_mutex.clone(), &m.topic, m.payload.as_bytes())
+                {
+                    println!("mqtt_publish error {:?} {:#?}", e, d);
                 };
-                if let Ok(d) = json_data {
-                    d.iter().for_each(|m| {
-                        if let Err(e) = mqtt_publish(
-                            mqttclient_arc_mutex.clone(),
-                            &m.topic,
-                            m.payload.as_bytes(),
-                        ) {
-                            println!("mqtt_publish error {:?} {:#?}", e, d);
-                        };
-                    });
+            });
 
-                    // update alive time update
-                    let message = format!("Uptime {:?}", Instant::now().duration_since(boot_time));
-                    if let Err(e) = mqtt_publish(
-                        mqttclient_arc_mutex.clone(),
-                        MQTT_TOPIC_NAME,
-                        message.as_bytes(),
-                    ) {
-                        println!("mqtt_publish error {:?} {:#?}", e, d);
-                    };
-                }
-            }
-        } else {
-            info!("Inverter lock failed, skipping inverter poll")
+            // update alive time update
+            let message = format!("Uptime {:?}", Instant::now().duration_since(boot_time));
+            if let Err(e) = mqtt_publish(
+                mqttclient_arc_mutex.clone(),
+                MQTT_TOPIC_NAME,
+                message.as_bytes(),
+            ) {
+                println!("mqtt_publish error {:?} {:#?}", e, d);
+            };
         }
-    } else {
-        info!("Aurora lock failed, skipping inverter poll")
     }
 }
 

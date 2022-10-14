@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" lang="en" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Over-the-Air Firmware Updater</title>
+    <style>
+        body>div {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border: 1px solid grey;
+            max-width: 70vw;
+            box-shadow: 0 1em 1em -.4em #000;
+            border-radius: 10px;
+            background-color: lightgray;
+            transform: translateX(-50%) translateY(-50%)
+        }
+
+        .grid {
+            display: grid;
+        }
+
+        form {
+            padding: 0 1em 1em 1em
+        }
+
+        h1 {
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            text-align: center;
+            font-size: 1.8em;
+            color: #292929;
+            margin: .5em 1.5em 0 1.5em;
+            text-shadow: 1px 1px #fff;
+            font-weight: 600;
+        }
+
+        hr {
+            height: 2px;
+        }
+
+        pre {
+            margin: 1em;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        input[type="file"] {
+            color: #292929
+        }
+
+        input[type="submit"] {
+            padding: .5em 0;
+            background-color: #d61010;
+            border-radius: 5px;
+            text-shadow: 2px 2px #111;
+            box-shadow: 0 1px 1px -1px #000;
+        }
+
+        input {
+            position: relative;
+            max-width: 60vw;
+            text-align: center;
+            text-overflow: ellipsis;
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 0;
+            margin: 0.2em;
+            color: #fff;
+            font-size: 1.2em;
+            font-weight: 600
+        }
+
+        input[type="submit" i]:active {
+
+
+            background-color: #8b0000;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="resp">
+        <h1>ESP32 OTA</h1>
+        <hr>
+        <form class="form grid2 grid" method="POST" action="/ota" enctype='multipart/form-data'
+            onsubmit="return submitForm(this);">
+            <input type='file' name='update' title="bin file">
+            <input class="pushable" type='submit' value='Update' id="submit_button" onclick="return submitClick(this);">
+            </input>
+        </form>
+    </div>
+</body>
+<script>
+    "use strict";
+    function submitClick(btn) {
+        btn.value = "Updating";
+        return true;
+    }
+    function submitForm(oFormElement) {
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+            if (xhr.responseText.includes("DOCTYPE")) {
+                var parser = new DOMParser();
+                var htmlDoc = parser.parseFromString(xhr.responseText, "text/html");
+                var body_html = htmlDoc.querySelector("body");
+                document.getElementById("resp").innerHTML = body_html.innerHTML;
+            } else {
+                alert(xhr.responseText + " - Close to reboot device");
+                var submit_button = document.getElementById("submit_button");
+                submit_button.value = "Updated";
+                fetch("/restart");
+                alert("Device is rebooting");
+            };
+        }
+        xhr.open(oFormElement.method, oFormElement.action, true);
+        xhr.send(new FormData(oFormElement));
+        return false;
+    }
+</script>
+
+</html>

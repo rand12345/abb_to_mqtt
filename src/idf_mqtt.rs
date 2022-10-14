@@ -1,7 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use embedded_svc::mqtt::client::utils::ConnState;
 use embedded_svc::mqtt::client::{Client, Connection, MessageImpl, Publish, QoS};
+use esp_idf_hal::mutex::Mutex;
 use esp_idf_svc::mqtt::client::*;
 use log::*;
 
@@ -54,17 +55,14 @@ pub fn mqtt_publish(
     topic: &str,
     payload: &[u8],
 ) -> anyhow::Result<()> {
-    if let Ok(mut client) = client_m.lock() {
-        client.publish(topic, QoS::AtMostOnce, false, payload)?;
-        log::info!(
-            "Published {} {:?} {:?} {}",
-            topic,
-            QoS::AtMostOnce,
-            false,
-            String::from_utf8_lossy(payload)
-        )
-    } else {
-        info!("MQTT Mutex lock fail")
-    }
+    let mut client = client_m.lock();
+    client.publish(topic, QoS::AtMostOnce, false, payload)?;
+    log::info!(
+        "Published {} {:?} {:?} {}",
+        topic,
+        QoS::AtMostOnce,
+        false,
+        String::from_utf8_lossy(payload)
+    );
     Ok(())
 }

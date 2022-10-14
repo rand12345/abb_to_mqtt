@@ -19,8 +19,9 @@ opt-level = "s"
 opt-level = "s" # +
 
 [features]
-default = ["native"]
+default = ["native", "experimental"]
 native = ["esp-idf-sys/native"]
+experimental = ["esp-idf-svc/experimental", "esp-idf-hal/experimental", "embedded-svc/experimental"]
 
 [dependencies]
 nb = "1.0.0"
@@ -33,7 +34,10 @@ embedded-hal = "0.2.7"
 log = "0.4.17"
 serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"
-
+dotenv_codegen = "0.15.0"
+heapless = "0.7"
+esp-ota = "0.1.0"
+twoway = "0.2.2"
 [build-dependencies]
 embuild = "0.30.4"
 anyhow = "1.0.56"

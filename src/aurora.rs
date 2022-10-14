@@ -124,6 +124,7 @@ impl Aurora {
     }
     pub fn init_inverter(&mut self, inverter: &mut AuroraInverter) -> anyhow::Result<()> {
         // checks that inverter is communicating and not alarming
+        self.rx.flush()?;
         let response = self.request_data(
             inverter,
             DspFunction::Measure,
@@ -246,11 +247,11 @@ impl Aurora {
     ) -> anyhow::Result<[u8; 8]> {
         // uses enum to get data
 
-        let global_measure: u8 = if global { 1 } else { 0 };
+        let global_measure: u8 = u8::from(global);
         let mut request: [u8; 10] = [
             inverter.id,
             function.to_code(),
-            command as u8,
+            command,
             global_measure,
             0,
             0,

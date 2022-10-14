@@ -1,16 +1,18 @@
-#![feature(backtrace)]
 #![allow(clippy::redundant_clone)]
 
 use embedded_hal::digital::v2::OutputPin;
+use esp_idf_hal::mutex::{Condvar, Mutex};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::Hertz;
 use esp_idf_hal::serial;
 use esp_idf_svc::{netif::EspNetifStack, nvs::EspDefaultNvs, sysloop::EspSysLoopStack};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+// use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 mod aurora;
 mod events;
+mod http_server;
 mod idf_mqtt;
 mod led_strip;
 mod wifi_init;
@@ -18,16 +20,21 @@ use aurora::*;
 use esp_idf_svc::mqtt::client::MqttClientConfiguration;
 use led_strip::{Led, LedState};
 
+#[macro_use]
+extern crate dotenv_codegen;
+
 // Secrets from .env file
-const SSID: &str = env!("SSID");
-const PASS: &str = env!("PASS");
-const MQTT_ADDR: &str = env!("MQTT_ADDR");
-const MQTT_USERNAME: &str = env!("MQTT_USERNAME");
-const MQTT_PASSWORD: &str = env!("MQTT_PASSWORD");
-const MQTT_CLIENT_ID: &str = env!("MQTT_CLIENT_ID");
-const MQTT_TOPIC_NAME: &str = env!("MQTT_TOPIC_NAME");
+const SSID: &str = dotenv!("SSID");
+const PASS: &str = dotenv!("PASS");
+const MQTT_ADDR: &str = dotenv!("MQTT_ADDR");
+const MQTT_USERNAME: &str = dotenv!("MQTT_USERNAME");
+const MQTT_PASSWORD: &str = dotenv!("MQTT_PASSWORD");
+const MQTT_CLIENT_ID: &str = dotenv!("MQTT_CLIENT_ID");
+const MQTT_TOPIC_NAME: &str = dotenv!("MQTT_TOPIC_NAME");
 const MQTT_FREQUENCY: Duration = Duration::from_secs(10);
 const INVERTER_COMMS_TIMEOUT: Duration = Duration::from_millis(250);
+
+const VERSION: &str = dotenv!("CARGO_PKG_VERSION");
 
 /*
 Need to qualify MQTT publish with a check on wifi status
@@ -91,7 +98,7 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     led.set_color(LedState::NC, LedState::On, LedState::NC)?;
-    let _current_ssid = &(*SSID);
+    let _current_ssid = SSID;
 
     // Get MAC address - janky + unsafe
     let mut mac: [u8; 6] = [0; 6];
@@ -131,6 +138,10 @@ fn main() -> anyhow::Result<()> {
         MQTT_FREQUENCY,
         boot_time,
     )?;
+    let mutex = Arc::new((Mutex::new(None), Condvar::new()));
+    let _httpd = http_server::httpd(mutex)?;
+
+    println!("FW version: {}", VERSION);
 
     loop {
         led.set_color(LedState::NC, LedState::NC, LedState::On)?;

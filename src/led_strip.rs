@@ -31,7 +31,7 @@ impl std::fmt::Display for EspError {
 impl std::error::Error for EspError {}
 
 fn esp_res(err_code: esp_err_t) -> Result<(), EspError> {
-    if err_code == ESP_OK as i32 {
+    if err_code == ESP_OK {
         Ok(())
     } else {
         Err(EspError { inner: err_code })
